@@ -19,6 +19,11 @@ public class Scene {
      */
     private int numIter = 10;
 
+    /**
+     * Méthode de calcul numérique pour la divergence
+     */
+    private double OVER_RELAXATION = 1.99;
+
     // Copie des variables globales
     static private int X_SIZE = AnimationMain.X_SIZE;
     static private int Y_SIZE = AnimationMain.Y_SIZE;
@@ -205,7 +210,7 @@ public class Scene {
     }
 
     /**
-     * Solbeur linéaire, qui interpole la valeur en un point à partir de ses voisins
+     * Solveur linéaire, qui interpole la valeur en un point à partir de ses voisins
      * 
      * @param b    La donnée pour les bords
      * @param x    Le champ actuel à actualiser
@@ -268,7 +273,7 @@ public class Scene {
                         - velocX[IX(i - 1, j)]
                         + velocY[IX(i, j + 1)]
                         - velocY[IX(i, j - 1)]) / X_SIZE;
-                div[IX(i, j)] *= AnimationMain.OVER_RELAXATION;
+                div[IX(i, j)] *= OVER_RELAXATION;
                 p[IX(i, j)] = 0;
             }
         }
@@ -368,7 +373,7 @@ public class Scene {
      * @param dt L'intervalle de temps
      */
     public void update(float dt) {
-        // Ajout de la gravité
+        // Ajout de la gravité et du fluide
         add_source(v, AnimationMain.GRAVITE, dt);
 
         // Diffusion des vitesses selon elles-mêmes

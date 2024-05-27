@@ -11,17 +11,17 @@ import javax.swing.Timer;
 public class AnimationMain extends JPanel implements ActionListener {
     /// Paramètres de la simulation
     static final int X_SIZE = 300; // Largeur de la fenêtre
-    static final int Y_SIZE = 150; // Hauteur de la fenêtre
+    static final int Y_SIZE = 50; // Hauteur de la fenêtre
     static final int Y_OFFSET = 37; // Offset en Y pour l'affichage
     static final int DUREE_IMAGES = 10; // Durée d'affichage de chaque image
 
     static final int SUBSTEPS = 1; // Nombre de calculations par image
-    static final double OVER_RELAXATION = 1.99; // Méthode de calcul numérique pour la divergence
     static final int ESPACEMENT = 3; // Nombre de pixels par carré
 
     static final int GRAVITE = 0; // Force de gravité qui s'applique au fluide
-    static final float DIFF = 0.001f; // Taux de diffusion du fluide
+    static final float DIFF = 0.0001f; // Taux de diffusion du fluide
     static final float VISC = 0.00001f; // Viscosité du fluide
+
     static final int VITESSE = 200; // Vitesse turbine en entrée d'écoulement
     static final int LARGEUR = 100; // Largeur du flux d'entrée (en %)
     static final int HAUTEUR = 20; // Hauteur du profil d'aile mince
