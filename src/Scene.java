@@ -7,12 +7,12 @@ public class Scene {
     /**
      * Densité maximale de l'encre
      */
-    public float maxDensity = 0.1f;
+    public float max = 0.1f;
 
     /**
      * Densité minimale de l'encre
      */
-    public float minDensity = 0;
+    public float min = 0;
 
     /**
      * Nombre d'itérations par calcul
@@ -381,7 +381,7 @@ public class Scene {
         diffuse(2, v0, v, visc, dt, numIter);
 
         // Annulation de la divergence
-        project(u0, v0, u, v, numIter);
+        // project(u0, v0, u, v, numIter);
 
         // Déplacement du champ de vitesse selon lui-même
         advect(1, u, u0, u0, v0, dt);
@@ -398,20 +398,20 @@ public class Scene {
     /**
      * Fonction qui met à jour les valeurs max et min de la densité pour l'affichage
      */
-    public void updateMaxMin() {
-        minDensity = 0;
-        maxDensity = 0;
+    public void majMaxMin(float[] valeurs) {
+        min = 0;
+        max = 0;
         for (int x = 10; x < X_SIZE; x++) {
             for (int y = 0; y < Y_SIZE; y++) {
-                if (density[IX(x, y)] > maxDensity) {
-                    maxDensity = density[IX(x, y)];
+                if (valeurs[IX(x, y)] > max) {
+                    max = valeurs[IX(x, y)];
                 }
-                if (density[IX(x, y)] < minDensity) {
-                    minDensity = density[IX(x, y)];
+                if (valeurs[IX(x, y)] < min) {
+                    min = valeurs[IX(x, y)];
                 }
             }
         }
 
-        maxDensity = (float) Math.max(1E-10, maxDensity);
+        max = (float) Math.max(1E-10, max);
     }
 }

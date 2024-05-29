@@ -11,18 +11,18 @@ import javax.swing.Timer;
 public class AnimationMain extends JPanel implements ActionListener {
     /// Paramètres de la simulation
     static final int X_SIZE = 300; // Largeur de la fenêtre
-    static final int Y_SIZE = 75; // Hauteur de la fenêtre
+    static final int Y_SIZE = 50; // Hauteur de la fenêtre
     static final int Y_OFFSET = 37; // Offset en Y pour l'affichage
     static final int DUREE_IMAGES = 10; // Durée d'affichage de chaque image
 
-    static final int SUBSTEPS = 2; // Nombre de calculations par image
+    static final int SUBSTEPS = 3; // Nombre de calculations par image
     static final int ESPACEMENT = 3; // Nombre de pixels par carré
 
-    static final float GRAVITE = 0f; // Force de gravité qui s'applique au fluide
-    // static final float DIFF = 100f; // Taux de diffusion du fluide
-    static final float VISC = 0.01f; // Viscosité du fluide
+    static final int GRAVITE = 0; // Force de gravité qui s'applique au fluide
+    static final float DIFF = 0.0001f; // Taux de diffusion du fluide
+    static final float VISC = 0.00001f; // Viscosité du fluide
 
-    static final int VITESSE = 20; // Vitesse turbine en entrée d'écoulement
+    static final int VITESSE = 100; // Vitesse turbine en entrée d'écoulement
     static final int LARGEUR = 100; // Largeur du flux d'entrée (en %)
     static final int HAUTEUR = 20; // Hauteur du profil d'aile mince
 
@@ -41,53 +41,42 @@ public class AnimationMain extends JPanel implements ActionListener {
      * @return La couleur idéale
      */
     Color getSciColor(float val, float minVal, float maxVal) {
-        val = 1 - (float) Math.abs((Math.min(Math.max(val, minVal), maxVal) - minVal) / (maxVal - minVal));
+        val = 1 - (float) Math.min(Math.max(val, minVal), maxVal) / maxVal;
 
-        // System.out.println(val);
+        int num = (int) Math.floor(val * 4);
+        float s = (val - (float) num / 4) * 4;
 
-        // float detail = 4.1f;
+        double r = 0, g = 0, b = 1;
 
-        // int num = (int) Math.floor(val * detail);
-        // float s = (val - (float) num / detail) * detail;
+        switch (num) {
+            case 0:
+                r = 0.0;
+                g = s;
+                b = 1.0;
+                break;
+            case 1:
+                r = 0.0;
+                g = 1.0;
+                b = 1.0 - s;
+                break;
+            case 2:
+                r = s;
+                g = 1.0;
+                b = 0.0;
+                break;
+            case 3:
+                r = 1.0;
+                g = 1.0 - s;
+                b = 0.0;
+                break;
+        }
 
-        // double r = 0, g = 0, b = 1;
-
-        // switch (num) {
-        // case 0:
-        // r = 0.0;
-        // g = s;
-        // b = 1.0;
-        // break;
-        // case 1:
-        // r = 0.0;
-        // g = 1.0;
-        // b = 1.0 - s;
-        // break;
-        // case 2:
-        // r = s;
-        // g = 1.0;
-        // b = 0.0;
-        // break;
-        // case 3:
-        // r = 1.0;
-        // g = 1.0 - s;
-        // b = 0.0;
-        // break;
-        // }
-
-        val = (float) (Math.exp(val) / Math.E);
-
-        // return new Color((int) (255 * r), (int) (255 * g), (int) (255 * b));
-        return new Color((int) (254 * val), (int) (254 * val), (int) (254 * val));
+        return new Color((int) (255 * r), (int) (255 * g), (int) (255 * b));
     }
 
     void paint_scene(Graphics2D g) {
-        float[] valeurs = scene.u;
-
+        float[] valeurs = scene.density;
         scene.majMaxMin(valeurs);
-
-        System.out.println("Max:" + scene.max);
-        System.out.println("Min:" + scene.min);
 
         for (int x = 0; x < X_SIZE; x++) {
             for (int y = 0; y < Y_SIZE; y++) {
@@ -100,20 +89,18 @@ public class AnimationMain extends JPanel implements ActionListener {
         }
 
         // Objet au milieu
-        // int hauteur = AnimationMain.HAUTEUR;
-        // int longueur = (int) ((double) hauteur / 0.1106);
+        int hauteur = AnimationMain.HAUTEUR;
+        int longueur = (int) ((double) hauteur / 0.1106);
 
-        // for (int X = 50; X < 50 + longueur; X++) {
-        // int yxmax = (int) (Scene.top((double) (X - 50) * 0.1106 / hauteur) * hauteur
-        // / 0.1106);
-        // int yxmin = (int) (Scene.bottom((double) (X - 50) * 0.1106 / hauteur) *
-        // hauteur / 0.1106);
+        for (int X = 50; X < 50 + longueur; X++) {
+            int yxmax = (int) (Scene.top((double) (X - 50) * 0.1106 / hauteur) * hauteur / 0.1106);
+            int yxmin = (int) (Scene.bottom((double) (X - 50) * 0.1106 / hauteur) * hauteur / 0.1106);
 
-        // for (int y = Y_SIZE / 2 - yxmax; y <= Y_SIZE / 2 - yxmin; y++) {
-        // g.setColor(Color.BLACK);
-        // g.fillRect(ESPACEMENT * (X), ESPACEMENT * (y), ESPACEMENT, ESPACEMENT);
-        // }
-        // }
+            for (int y = Y_SIZE / 2 - yxmax; y <= Y_SIZE / 2 - yxmin; y++) {
+                g.setColor(Color.BLACK);
+                g.fillRect(ESPACEMENT * (X), ESPACEMENT * (y), ESPACEMENT, ESPACEMENT);
+            }
+        }
 
         // Affichage des stats
         g.setColor(Color.BLACK);
@@ -137,7 +124,7 @@ public class AnimationMain extends JPanel implements ActionListener {
 
         // Réalisation de plusieurs updates
         for (int i = 0; i < SUBSTEPS; i++) {
-            scene.maj((float) 1 / (10 * DUREE_IMAGES * SUBSTEPS));
+            scene.update((float) 1 / (10 * DUREE_IMAGES * SUBSTEPS));
         }
 
         compteur++;
