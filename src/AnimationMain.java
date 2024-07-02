@@ -9,18 +9,19 @@ import javax.swing.Timer;
 
 public class AnimationMain extends JPanel implements ActionListener {
     /// Paramètres de la simulation
-    static final int X_SIZE = 400; // Largeur de la fenêtre
-    static final int Y_SIZE = 100; // Hauteur de la fenêtre
+    static final int X_SIZE = 300; // Largeur de la fenêtre
+    static final int Y_SIZE = 80; // Hauteur de la fenêtre
     static final int Y_OFFSET = 37; // Offset en Y pour l'affichage
     static final int ESPACEMENT = 3; // Nombre de pixels par carré
-    static final int ITER = 30; // Nombre d'itérations par calcul
+    static final int ITER = 20; // Nombre d'itérations par calcul
 
     // Paramètres de l'écoulement
     static final int GRAVITE = 0; // Force de gravité qui s'applique au fluide
-    static final double DENSITE = 0.7; // Densité du fluide
+    static final double DENSITE = 0.7; // Densité du fluide (>0.7)
+    static final double VISC = 0.01; // Viscosité du fluide (>0.01)
 
-    static final int VITESSE = 900; // Vitesse turbine en entrée d'écoulement
-    static final int HAUTEUR = 15; // Hauteur de l'objet dans l'écoulement
+    static final int VITESSE = 600; // Vitesse turbine en entrée d'écoulement
+    static final int HAUTEUR = 10; // Hauteur de l'objet dans l'écoulement
 
     // Objets au milieu
     static final boolean CERCLE = true;
@@ -47,7 +48,7 @@ public class AnimationMain extends JPanel implements ActionListener {
                 if (scene.solide[x][y]) {
                     coul = Color.BLACK;
                 } else {
-                    coul = getSciColor(scene.grille[x][y].vitesse, 0, scene.max);
+                    coul = getSciColor(scene.grille[x][y].vitesse, scene.min, scene.max);
                 }
 
                 // Coloration d'une case
@@ -64,14 +65,15 @@ public class AnimationMain extends JPanel implements ActionListener {
     /**
      * Fonction qui détermine l'échelle de couleur à utiliser
      * 
-     * @param val    Valeur du champ au point
-     * @param minVal Valeur minimale du champ
-     * @param maxVal Valeur maximale du champ
+     * @param val       Valeur du champ au point
+     * @param valeurMin Valeur minimale du champ
+     * @param valeurMax Valeur maximale du champ
      * @return La couleur idéale
      */
-    Color getSciColor(double value, double minVal, double maxVal) {
+    Color getSciColor(double value, int valeurMin, int valeurMax) {
         // Normaliser la valeur
-        double valeurNormee = 1 - (Math.min(Math.max(value, minVal), maxVal) - minVal) / (maxVal - minVal);
+        double valeurNormee = 1
+                - (Math.min(Math.max(value, valeurMin), valeurMax) - valeurMin) / (valeurMax - valeurMin);
 
         // Déterminer le segment de la couleur
         int segment = (int) Math.floor(valeurNormee * 4);

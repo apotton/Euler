@@ -26,8 +26,8 @@ public class Scene {
     public boolean[][] solide = new boolean[X_SIZE][Y_SIZE];
 
     // Valeurs extrémales de vitesse
-    public double min = 0;
-    public double max = AnimationMain.VITESSE;
+    public int min = 0;
+    public int max = AnimationMain.VITESSE;
 
     /*
      * Constructeur d'une scène
@@ -88,7 +88,7 @@ public class Scene {
 
         for (int x = 0; x < X_SIZE; x++) {
             for (int y = 0; y < Y_SIZE; y++) {
-                if (Math.sqrt(Math.pow(x - centreX, 2) + Math.pow(y - centreY, 2)) <= rayon) {
+                if (Math.sqrt(Math.pow(x - centreX, 2) + Math.pow(y - centreY, 2)) < rayon) {
                     solide[x][y] = true;
                 }
             }
@@ -258,7 +258,7 @@ public class Scene {
      */
     public void diffusion(double dt) {
         // Relaxation de Gauss-Seidel
-        for (int k = 0; k < AnimationMain.ITER; k++) {
+        for (int k = 0; k < AnimationMain.ITER / 2; k++) {
             for (int x = 1; x < X_SIZE - 1; x++) {
                 for (int y = 1; y < Y_SIZE - 1; y++) {
                     // On ne calcule rien si on est dans le solide
@@ -305,8 +305,8 @@ public class Scene {
      * @param dt Intervalle de temps
      */
     public void calculPression(double dt) {
-        double h = 1.0 / Math.min(X_SIZE, Y_SIZE);
-        double factor = dt / (AnimationMain.DENSITE * h * h);
+        double h = AnimationMain.VISC;
+        double facteur = dt / (AnimationMain.DENSITE * h * h);
 
         // Calcul de la divergence
         for (int x = 1; x < X_SIZE - 1; x++) {
@@ -341,7 +341,7 @@ public class Scene {
                             + estSolide[x][y][3] * grille[x][y + 1].pression;
 
                     if (estSolide[x][y][4] > 0) {
-                        nouvellePression[x][y] = (sumPressure + solid * factor * grille[x][y].divergence)
+                        nouvellePression[x][y] = (sumPressure + solid * facteur * grille[x][y].divergence)
                                 / estSolide[x][y][4];
                     } else {
                         nouvellePression[x][y] = 0;
@@ -379,42 +379,21 @@ public class Scene {
     }
 
     /**
-     * Gestion des interactions entre le fluide et l'obstacle
-     */
-    private void interactionsSolide() {
-        for (int x = 1; x < X_SIZE - 1; x++) {
-            for (int y = 1; y < Y_SIZE - 1; y++) {
-                if (solide[x][y]) {
-                    // Inversion des vitesses au bord du solide
-                    if (!solide[x - 1][y])
-                        grille[x - 1][y].vitesseHorizontale = -grille[x - 1][y].vitesseHorizontale;
-                    if (!solide[x + 1][y])
-                        grille[x + 1][y].vitesseHorizontale = -grille[x + 1][y].vitesseHorizontale;
-                    if (!solide[x][y - 1])
-                        grille[x][y - 1].vitesseVerticale = -grille[x][y - 1].vitesseVerticale;
-                    if (!solide[x][y + 1])
-                        grille[x][y + 1].vitesseVerticale = -grille[x][y + 1].vitesseVerticale;
-                }
-            }
-        }
-    }
-
-    /**
      * Mise à jour des valeurs extrémales de vitesse pour l'affichage
      */
     private void majMinMax() {
-        min = Double.MAX_VALUE;
-        max = Double.MIN_VALUE;
+        min = Integer.MAX_VALUE;
+        max = Integer.MIN_VALUE;
 
         for (int x = 0; x < X_SIZE; x++) {
             for (int y = 0; y < Y_SIZE; y++) {
                 // Calcul de la norme de la vitesse pour chaque case
-                grille[x][y].vitesse = Math.sqrt(grille[x][y].vitesseHorizontale * grille[x][y].vitesseHorizontale +
-                        grille[x][y].vitesseVerticale * grille[x][y].vitesseVerticale);
+                grille[x][y].vitesse = Math.sqrt(Math.pow(grille[x][y].vitesseHorizontale, 2) +
+                        Math.pow(grille[x][y].vitesseVerticale, 2));
 
                 if (!solide[x][y]) {
-                    min = Math.min(min, grille[x][y].vitesse);
-                    max = Math.max(max, grille[x][y].vitesse);
+                    min = (int) Math.min(min, grille[x][y].vitesse);
+                    max = (int) Math.max(max, grille[x][y].vitesse);
                 }
             }
         }
@@ -426,7 +405,7 @@ public class Scene {
      * @param dt
      */
     public void update(double dt) {
-        // Etape 1: Apply external forces (if any)
+        // Etape 1: Application des forces extérieures
         appliquerForcesExterieures(dt);
 
         // Etape 2: Advection
@@ -435,16 +414,10 @@ public class Scene {
         // Etape 3: Diffusion
         diffusion(dt);
 
-        // Etape 4: Calcul de la pression
+        // Etape 4: Calcul et application de la pression
         calculPression(dt);
 
-        // Etape 5: Gestion des interactions avec le solide
-        interactionsSolide();
-
-        // Etape 6: Application des conditions aux limites
-        imposerLimites();
-
-        // Etape 7: Mise à jour des valeurs extrémales
+        // Etape 5: Mise à jour des valeurs extrémales
         majMinMax();
     }
 
