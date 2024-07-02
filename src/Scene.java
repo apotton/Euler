@@ -1,138 +1,98 @@
-
-/**
- * Classe simple représentant un fluide dans un carré
- */
 public class Scene {
+    // Taille de la grille (pour ne pas avoir à allonger le code)
+    private static final int X_SIZE = AnimationMain.X_SIZE;
+    private static final int Y_SIZE = AnimationMain.Y_SIZE;
+
+    /** Tableau des cases contenant les propriétés spatiales */
+    public Case[][] grille = new Case[X_SIZE][Y_SIZE];
+
+    /** Stockage temporaire de la vitesse horizontale */
+    private double[][] nouvelleVitesseHorizontale = new double[X_SIZE][Y_SIZE];
+
+    /** Sotckage temporaire de la vitesse verticale */
+    private double[][] nouvelleVitesseVerticale = new double[X_SIZE][Y_SIZE];
+
+    /** Stockage temporaire de la pression */
+    private double[][] nouvellePression = new double[X_SIZE][Y_SIZE];
 
     /**
-     * Densité maximale de l'encre
+     * Tableau indiquant si une case voisine est solide
+     * Pour chaque case, on a dans l'ordre la guauche, la
+     * droite, le bas, le haut et le nombre de voisins non solides
      */
-    public float max = 0.1f;
+    private int[][][] estSolide = new int[X_SIZE][Y_SIZE][5];
 
-    /**
-     * Densité minimale de l'encre
-     */
-    public float min = 0;
+    /** Tableau de booléens représentant un obstacle à l'écoulement */
+    public boolean[][] solide = new boolean[X_SIZE][Y_SIZE];
 
-    /**
-     * Nombre d'itérations par calcul
-     */
-    private int numIter = 10;
+    // Valeurs extrémales de vitesse
+    public double min = 0;
+    public double max = AnimationMain.VITESSE;
 
-    /**
-     * Méthode de calcul numérique pour la divergence
-     */
-    private double OVER_RELAXATION = 1.99;
-
-    // Copie des variables globales
-    static private int X_SIZE = AnimationMain.X_SIZE;
-    static private int Y_SIZE = AnimationMain.Y_SIZE;
-    private float diff = AnimationMain.DIFF;
-    private float visc = AnimationMain.VISC;
-
-    /**
-     * Obtenir l'indice d'une case dans un tableau unidimensionnel
-     * 
-     * @param x L'absisce de la case
-     * @param y L'ordonnée de la case
-     * @return L'indice correspondant à la case
-     */
-    static public int IX(int x, int y) {
-        x = Math.max(0, Math.min(X_SIZE - 1, x));
-        y = Math.max(0, Math.min(Y_SIZE - 1, y));
-        return x + X_SIZE * y;
-    }
-
-    /**
-     * Valeur précédente de densité
-     */
-    public float[] s = new float[X_SIZE * Y_SIZE];
-    /**
-     * Valeur actuelle de la densité
-     */
-    public float[] density = new float[X_SIZE * Y_SIZE];
-
-    /**
-     * Valeur de la vitesse horizontale
-     */
-    public float[] u = new float[X_SIZE * Y_SIZE];
-    /**
-     * Valeur précédente de la vitesse horizontale
-     */
-    public float[] u0 = new float[X_SIZE * Y_SIZE];
-
-    /**
-     * Valeur actuelle de la vitesse verticale
-     */
-    public float[] v = new float[X_SIZE * Y_SIZE];
-    /**
-     * Valeur précédente de la vitesse verticale
-     */
-    public float[] v0 = new float[X_SIZE * Y_SIZE];
-
-    /**
-     * Construit une scène où toutes les grandeurs sont nulles
+    /*
+     * Constructeur d'une scène
      */
     public Scene() {
+        // Initialisation de chaque case
         for (int x = 0; x < X_SIZE; x++) {
             for (int y = 0; y < Y_SIZE; y++) {
-                s[IX(x, y)] = 0;
-                density[IX(x, y)] = 0;
-                u[IX(x, y)] = 0;
-                u0[IX(x, y)] = 0;
-                v[IX(x, y)] = 0;
-                v0[IX(x, y)] = 0;
+                grille[x][y] = new Case();
             }
         }
+
+        // Initialisation de l'obstacle solide
+        initialiserObstacles();
+        initialiserVoisins();
     }
 
     /**
-     * Ajoute un terme source au champ x
-     * 
-     * @param x      Le champ à actualiser
-     * @param source La source à ajouter
-     * @param dt     L'intervalle de temps
+     * Initialise le tableau des voisins de chaque case
      */
-    public void add_source(float[] x, float source, float dt) {
-        int size = (X_SIZE - 1) * (Y_SIZE - 1);
-        for (int i = 0; i < size; i++) {
-            x[i] += dt * source;
-        }
+    void initialiserVoisins() {
+        for (int x = 1; x < X_SIZE - 1; x++) {
+            for (int y = 1; y < Y_SIZE - 1; y++) {
+                estSolide[x][y][0] = solide[x - 1][y] ? 0 : 1; // Gauche
+                estSolide[x][y][1] = solide[x + 1][y] ? 0 : 1; // Droite
+                estSolide[x][y][2] = solide[x][y - 1] ? 0 : 1; // Bas
+                estSolide[x][y][3] = solide[x][y + 1] ? 0 : 1; // Haut
 
-        // Ajout de la vitesse en entrée (turbine)
-        int ymin = (int) (Y_SIZE * (0.5 - (float) AnimationMain.LARGEUR / 200));
-        int ymax = (int) ((0.5 + (float) AnimationMain.LARGEUR / 200) * Y_SIZE);
+                int nombreVoisins = 0;
+                for (int i = 0; i < 4; i++) {
+                    nombreVoisins += estSolide[x][y][i];
+                }
 
-        for (int X = 0; X < 2; X++) {
-            for (int y = ymin; y < ymax; y++) {
-                u[IX(X, y)] = AnimationMain.VITESSE;
-                density[IX(X, y)] = 1;
+                // Nombre de voisins non solides
+                estSolide[x][y][4] = nombreVoisins;
             }
         }
+
     }
 
     /**
-     * Ajoute du fluide
-     * 
-     * @param x      L'abscisse
-     * @param y      L'ordonnée
-     * @param amount La quantité de densité à ajouter
+     * Initialisation du tableau solide avec un obstacle
      */
-    public void addDensity(int x, int y, float amount) {
-        this.density[IX(x, y)] += amount;
+    private void initialiserObstacles() {
+        if (AnimationMain.CERCLE)
+            cercle();
+        if (AnimationMain.AILE)
+            aileMince();
+        if (AnimationMain.CARRE)
+            carre();
     }
 
-    /**
-     * Ajoute de la vitesse
-     * 
-     * @param x       L'abscisse
-     * @param y       L'ordonnée
-     * @param amountX La quantité horizontale
-     * @param amountY La quantité verticale
-     */
-    public void addVelocity(int x, int y, float amountX, float amountY) {
-        this.u[IX(x, y)] += amountX;
-        this.v[IX(x, y)] += amountY;
+    /** Place un cercle dans l'écoulement */
+    private void cercle() {
+        int centreX = X_SIZE / 8;
+        int centreY = Y_SIZE / 2;
+        int rayon = AnimationMain.HAUTEUR / 2;
+
+        for (int x = 0; x < X_SIZE; x++) {
+            for (int y = 0; y < Y_SIZE; y++) {
+                if (Math.sqrt(Math.pow(x - centreX, 2) + Math.pow(y - centreY, 2)) <= rayon) {
+                    solide[x][y] = true;
+                }
+            }
+        }
     }
 
     /**
@@ -141,7 +101,7 @@ public class Scene {
      * @param x Abscisse
      * @return L'ordonnée du haut du profil
      */
-    static public double top(double x) {
+    static public double haut(double x) {
         return 0.5 / 8.556 * (Math.sqrt(8.556 * x / 2) - 1.1 * Math.pow(8.556 * x / 5, 2));
     }
 
@@ -151,267 +111,341 @@ public class Scene {
      * @param x Abscisse
      * @return L'ordonnée du bas du profil
      */
-    static public double bottom(double x) {
+    static public double bas(double x) {
         return 0.5 / 8.556 * (-Math.sqrt(8.556 * x) + Math.pow(8.556 * x / 3, 2) - 0.7 * Math.pow(8.556 * x / 4.1, 3));
     }
 
     /**
-     * Règle les conditions aux bords pour ne pas faire s'échapper du fluide
-     * 
-     * @param b Composante horizontale si b=1, verticale si b=2, rien de particulier
-     *          sinon
-     * @param x Le champ à actualiser
+     * Place une aile mince dans l'écoulement
      */
-    private void setBoundary(int b, float[] x) {
-
-        // Objet au milieu
+    private void aileMince() {
         int hauteur = AnimationMain.HAUTEUR;
         int longueur = (int) ((double) hauteur / 0.1106);
 
         for (int X = 50; X < 50 + longueur; X++) {
-            int yxmax = (int) (top((double) (X - 50) * 0.1106 / hauteur) * hauteur / 0.1106);
-            int yxmin = (int) (bottom((double) (X - 50) * 0.1106 / hauteur) * hauteur / 0.1106);
+            int yxmax = (int) (haut((double) (X - 50) * 0.1106 / hauteur) * hauteur /
+                    0.1106);
+            int yxmin = (int) (bas((double) (X - 50) * 0.1106 / hauteur) * hauteur /
+                    0.1106);
 
             for (int y = -yxmax; y <= -yxmin; y++) {
-                u[IX(X, y + Y_SIZE / 2)] = 0;
-                v[IX(X, y + Y_SIZE / 2)] = 0;
-                density[IX(X, y + Y_SIZE / 2)] = 0;
+                solide[X][y + Y_SIZE / 2] = true;
 
             }
         }
+    }
 
-        // System.out.println("Min : " + minmin);
-        // System.out.println("Minmax : " + minmax);
+    /** Place un carré dans l'écoulement */
+    private void carre() {
+        int debut = X_SIZE / 8;
 
-        // Conditions en haut et en bas
-        for (int i = 1; i < X_SIZE - 1; i++) {
-            x[IX(i, 0)] = b == 2 ? -x[IX(i, 1)] : x[IX(i, 1)];
-            x[IX(i, Y_SIZE - 1)] = b == 2 ? -x[IX(i, Y_SIZE - 2)] : x[IX(i, Y_SIZE - 2)];
+        for (int y = (Y_SIZE - AnimationMain.HAUTEUR) / 2; y < (Y_SIZE + AnimationMain.HAUTEUR) / 2; y++) {
+            for (int x = debut; x < AnimationMain.HAUTEUR + debut; x++) {
+                solide[x][y] = true;
+            }
         }
-
-        // Conditions à droite et à gauche
-        for (int j = 1; j < Y_SIZE - 1; j++) {
-            x[IX(0, j)] = b == 1 ? -x[IX(1, j)] : x[IX(1, j)];
-            x[IX(X_SIZE - 1, j)] = x[IX(X_SIZE - 2, j)];
-        }
-
-        // Conditions aux coins
-        x[IX(0, 0)] = (x[IX(1, 0)]
-                + x[IX(0, 1)]) / 2;
-
-        x[IX(0, Y_SIZE - 1)] = (x[IX(1, Y_SIZE - 1)]
-                + x[IX(0, Y_SIZE - 2)]) / 2;
-
-        x[IX(X_SIZE - 1, 0)] = (x[IX(X_SIZE - 2, 0)]
-                + x[IX(X_SIZE - 1, 1)]) / 2;
-
-        x[IX(X_SIZE - 1, Y_SIZE - 1)] = (x[IX(X_SIZE - 2, Y_SIZE - 1)]
-                + x[IX(X_SIZE - 1, Y_SIZE - 2)]) / 2;
     }
 
     /**
-     * Solveur linéaire, qui interpole la valeur en un point à partir de ses voisins
-     * 
-     * @param b    La donnée pour les bords
-     * @param x    Le champ actuel à actualiser
-     * @param x0   Le champ à l'instant précédent
-     * @param a    Le paramètre de résolution dans la méthode de Poisson
-     * @param c    =1+4a en 2D et 1+6a en 3D (le coefficient devant a correpond au
-     *             nombre de voisins)
-     * @param iter Nombre d'itérations de l'algorithme
+     * Définir les conditions aux limites pour la simulation de fluide
      */
-    private void lin_solve(int b, float[] x, float[] x0, float a, float c, int iter) {
+    public void imposerLimites() {
+        for (int y = 0; y < Y_SIZE; y++) {
+            // Limite gauche (flux incident)
+            grille[0][y].vitesseHorizontale = AnimationMain.VITESSE;
+            grille[0][y].vitesseVerticale = 0.0;
 
-        for (int k = 0; k < iter; k++) {
-            for (int j = 1; j < Y_SIZE - 1; j++) {
-                for (int i = 1; i < X_SIZE - 1; i++) {
-                    x[IX(i, j)] = (x0[IX(i, j)]
-                            + a * (x[IX(i + 1, j)]
-                                    + x[IX(i - 1, j)]
-                                    + x[IX(i, j + 1)]
-                                    + x[IX(i, j - 1)]))
-                            / c;
-                }
-            }
-            setBoundary(b, x);
+            // Limite droite (le fluide peut s'échapper)
+            grille[X_SIZE - 1][y].vitesseHorizontale = grille[X_SIZE - 2][y].vitesseHorizontale;
+            grille[X_SIZE - 1][y].vitesseVerticale = grille[X_SIZE - 2][y].vitesseVerticale;
         }
 
+        // Limites supérieure et inférieure (le fluide ne peut pas s'échapper)
+        for (int x = 1; x < X_SIZE; x++) {
+            // Limite supérieure
+            grille[x][0].vitesseVerticale = 0.0;
+            grille[x][0].vitesseHorizontale = grille[x][1].vitesseHorizontale;
+
+            // Limite inférieure
+            grille[x][Y_SIZE - 1].vitesseVerticale = 0.0;
+            grille[x][Y_SIZE - 1].vitesseHorizontale = grille[x][Y_SIZE - 2].vitesseHorizontale;
+        }
     }
 
     /**
-     * Diffuse un champ à ses voisin selon l'algorithme de Poisson
+     * Application des forces extérieures au fluide (gravité)
      * 
-     * @param b    Paramètre pour les bords
-     * @param x    Le champ actuel à actualiser
-     * @param x0   Le champ à l'instant précédent
-     * @param diff Le facteur de diffusion
-     * @param dt   Le delta temporel
-     * @param iter Le nombre d'itérations
+     * @param dt Intervalle de temps
      */
-    private void diffuse(int b, float[] x, float[] x0, float diff, float dt, int iter) {
-
-        float a = dt * diff * (X_SIZE) * (Y_SIZE);
-        lin_solve(b, x, x0, a, 1 + 4 * a, iter);
-    }
-
-    /**
-     * Méthode qui modifie les valeurs de vitesse pour avoir un fluide
-     * incompressible
-     * 
-     * @param velocX La vitesse horizontale
-     * @param velocY La vitesse verticale
-     * @param p      La pression
-     * @param div    La divergence
-     * @param iter   Le nombre d'iterations
-     */
-    private void project(float[] velocX, float[] velocY, float[] p, float[] div, int iter) {
-        // Calcul des divergences en tout point
-
-        for (int j = 1; j < Y_SIZE - 1; j++) {
-            for (int i = 1; i < X_SIZE - 1; i++) {
-                div[IX(i, j)] = -0.5f * (velocX[IX(i + 1, j)]
-                        - velocX[IX(i - 1, j)]
-                        + velocY[IX(i, j + 1)]
-                        - velocY[IX(i, j - 1)]) / X_SIZE;
-                div[IX(i, j)] *= OVER_RELAXATION;
-                p[IX(i, j)] = 0;
+    private void appliquerForcesExterieures(double dt) {
+        for (int x = 1; x < X_SIZE - 1; x++) {
+            for (int y = 1; y < Y_SIZE - 1; y++) {
+                grille[x][y].vitesseVerticale += AnimationMain.GRAVITE * dt;
             }
         }
-
-        // Calcul des pressions en tout point
-        setBoundary(0, div);
-        setBoundary(0, p);
-        lin_solve(0, p, div, 1, 4, iter);
-
-        // Actualisation des vitesses pour avoir une divergence nulle
-        for (int j = 1; j < Y_SIZE - 1; j++) {
-            for (int i = 1; i < X_SIZE - 1; i++) {
-                velocX[IX(i, j)] -= 0.5f * (p[IX(i + 1, j)]
-                        - p[IX(i - 1, j)]) * X_SIZE;
-                velocY[IX(i, j)] -= 0.5f * (p[IX(i, j + 1)]
-                        - p[IX(i, j - 1)]) * Y_SIZE;
-            }
-        }
-
-        setBoundary(1, velocX);
-        setBoundary(2, velocY);
-
     }
 
     /**
      * Projette un champ selon les vecteurs vitesse (déplacement)
      * 
-     * @param b      Le paramètre pour les bords
-     * @param d      Le champ actuel
-     * @param d0     Le champ précédent
-     * @param velocX La vitesse horizontale
-     * @param velocY La vitesse verticale
-     * @param dt     L'intervalle de temps
+     * @param dt Intervalle de temps
      */
-    private void advect(int b, float[] d, float[] d0, float[] velocX, float[] velocY, float dt) {
-        float i0, i1, j0, j1;
+    public void advection(double dt) {
 
-        float dtx = dt * (X_SIZE - 1);
-        float dty = dt * (Y_SIZE - 1);
+        for (int x = 1; x < X_SIZE - 1; x++) {
+            for (int y = 1; y < Y_SIZE - 1; y++) {
 
-        float s0, s1, t0, t1;
-        float tmp1, tmp2, x, y;
-
-        float Nfloat = Math.max(X_SIZE, Y_SIZE);
-        float ifloat = 1, jfloat = 1;
-        int i, j;
-
-        for (j = 1, jfloat = 1; j < Y_SIZE - 1; j++, jfloat++) {
-            for (i = 1, ifloat = 1; i < X_SIZE - 1; i++, ifloat++) {
-                // On interpole la vitesse à la position précédente par une approche
-                // semi-lagrangienne avec des gros calculs savants
-                tmp1 = dtx * velocX[IX(i, j)];
-                tmp2 = dty * velocY[IX(i, j)];
-                x = ifloat - tmp1;
-                y = jfloat - tmp2;
-
-                if (x < 0.5f) {
-                    x = 0.5f;
+                if (solide[x][y]) {
+                    // La vitesse dans le solide est nulle
+                    grille[x][y].vitesseHorizontale = 0;
+                    grille[x][y].vitesseVerticale = 0;
+                    continue;
                 }
-                if (x > Nfloat + 0.5f) {
-                    x = Nfloat + 0.5f;
-                }
-                i0 = (int) (x);
-                i1 = i0 + 1;
 
-                if (y < 0.5f) {
-                    y = 0.5f;
-                }
-                if (y > Nfloat + 0.5f) {
-                    y = Nfloat + 0.5f;
-                }
-                j0 = (int) (y);
-                j1 = j0 + 1;
+                // Calcul de la position d'origine du fluide
+                double ancienX = x - dt * grille[x][y].vitesseHorizontale;
+                double ancienY = y - dt * grille[x][y].vitesseVerticale;
 
-                s1 = x - i0;
-                s0 = 1.0f - s1;
-                t1 = y - j0;
-                t0 = 1.0f - t1;
+                // Recalage des coordonnées dans la grille
+                ancienX = Math.max(0.5, Math.min(X_SIZE - 1.5, ancienX));
+                ancienY = Math.max(0.5, Math.min(Y_SIZE - 1.5, ancienY));
 
-                int i0i = (int) i0;
-                int i1i = (int) i1;
-                int j0i = (int) j0;
-                int j1i = (int) j1;
+                // Calcul des indices des cases environnantes
+                int x0 = (int) ancienX;
+                int y0 = (int) ancienY;
+                int x1 = x0 + 1;
+                int y1 = y0 + 1;
 
-                // On actualise le champ en question selon ses valeurs précédentes
-                d[IX(i, j)] = s0 * (t0 * d0[IX(i0i, j0i)] + t1 * d0[IX(i0i, j1i)]) +
-                        s1 * (t0 * d0[IX(i1i, j0i)] + t1 * d0[IX(i1i, j1i)]);
+                // Calcul des facteurs d'interpolation
+                double sx1 = ancienX - x0;
+                double sy1 = ancienY - y0;
+                double sx0 = 1 - sx1;
+                double sy0 = 1 - sy1;
+
+                // Interpolation de la pression
+                nouvellePression[x][y] = sx0 * (sy0 * grille[x0][y0].pression + sy1 * grille[x0][y1].pression) +
+                        sx1 * (sy0 * grille[x1][y0].pression + sy1 * grille[x1][y1].pression);
+
+                // Interpolation de la vitesse horizontale
+                nouvelleVitesseHorizontale[x][y] = sx0
+                        * (sy0 * grille[x0][y0].vitesseHorizontale + sy1 * grille[x0][y1].vitesseHorizontale) +
+                        sx1 * (sy0 * grille[x1][y0].vitesseHorizontale + sy1 * grille[x1][y1].vitesseHorizontale);
+
+                // Interpolation de la vitesse verticale
+                nouvelleVitesseVerticale[x][y] = sx0
+                        * (sy0 * grille[x0][y0].vitesseVerticale + sy1 * grille[x0][y1].vitesseVerticale) +
+                        sx1 * (sy0 * grille[x1][y0].vitesseVerticale + sy1 * grille[x1][y1].vitesseVerticale);
             }
         }
 
-        setBoundary(b, d);
+        // Transfert du buffer à la grille
+        for (int x = 1; x < X_SIZE - 1; x++) {
+            for (int y = 1; y < Y_SIZE - 1; y++) {
+                grille[x][y].pression = nouvellePression[x][y];
+                grille[x][y].vitesseHorizontale = nouvelleVitesseHorizontale[x][y];
+                grille[x][y].vitesseVerticale = nouvelleVitesseVerticale[x][y];
+            }
+        }
+
+        // Application des conditions aux limites
+        imposerLimites();
     }
 
     /**
-     * Fonction de mise à jour de la scène
+     * Diffusion des propriétés du fluides d'une case vers ses voisines
      * 
      * @param dt L'intervalle de temps
      */
-    public void update(float dt) {
-        // Ajout de la gravité et du fluide
-        add_source(v, AnimationMain.GRAVITE, dt);
+    public void diffusion(double dt) {
+        // Relaxation de Gauss-Seidel
+        for (int k = 0; k < AnimationMain.ITER; k++) {
+            for (int x = 1; x < X_SIZE - 1; x++) {
+                for (int y = 1; y < Y_SIZE - 1; y++) {
+                    // On ne calcule rien si on est dans le solide
+                    if (solide[x][y])
+                        continue;
 
-        // Diffusion des vitesses selon elles-mêmes
-        diffuse(1, u0, u, visc, dt, numIter);
-        diffuse(2, v0, v, visc, dt, numIter);
+                    // Calul de la vitesse horizontale
+                    nouvelleVitesseHorizontale[x][y] = (grille[x][y].vitesseHorizontale +
+                            dt * (grille[x - 1][y].vitesseHorizontale + grille[x + 1][y].vitesseHorizontale +
+                                    grille[x][y - 1].vitesseHorizontale + grille[x][y + 1].vitesseHorizontale))
+                            / (1 + 4 * dt);
 
-        // Annulation de la divergence
-        // project(u0, v0, u, v, numIter);
+                    // Calul de la vitesse verticale
+                    nouvelleVitesseVerticale[x][y] = (grille[x][y].vitesseVerticale +
+                            dt * (grille[x - 1][y].vitesseVerticale + grille[x + 1][y].vitesseVerticale +
+                                    grille[x][y - 1].vitesseVerticale + grille[x][y + 1].vitesseVerticale))
+                            / (1 + 4 * dt);
 
-        // Déplacement du champ de vitesse selon lui-même
-        advect(1, u, u0, u0, v0, dt);
-        advect(2, v, v0, u0, v0, dt);
-
-        // Annulation de la divergence résulante
-        project(u, v, u0, v0, numIter);
-
-        // Diffusion et advection de la densité
-        diffuse(0, s, density, diff, dt, numIter);
-        advect(0, density, s, u, v, dt);
-    }
-
-    /**
-     * Fonction qui met à jour les valeurs max et min de la densité pour l'affichage
-     */
-    public void majMaxMin(float[] valeurs) {
-        min = 0;
-        max = 0;
-        for (int x = 10; x < X_SIZE; x++) {
-            for (int y = 0; y < Y_SIZE; y++) {
-                if (valeurs[IX(x, y)] > max) {
-                    max = valeurs[IX(x, y)];
+                    // Calcul de la pression
+                    nouvellePression[x][y] = (grille[x][y].pression +
+                            dt * (grille[x - 1][y].pression + grille[x + 1][y].pression +
+                                    grille[x][y - 1].pression + grille[x][y + 1].pression))
+                            / (1 + 4 * dt);
                 }
-                if (valeurs[IX(x, y)] < min) {
-                    min = valeurs[IX(x, y)];
+            }
+
+            // Mise à jour des valeurs de la grille
+            for (int x = 1; x < X_SIZE - 1; x++) {
+                for (int y = 1; y < Y_SIZE - 1; y++) {
+                    grille[x][y].vitesseHorizontale = nouvelleVitesseHorizontale[x][y];
+                    grille[x][y].vitesseVerticale = nouvelleVitesseVerticale[x][y];
+                    grille[x][y].pression = nouvellePression[x][y];
                 }
             }
         }
 
-        max = (float) Math.max(1E-10, max);
+        // Application des conditions aux limites
+        imposerLimites();
     }
+
+    /**
+     * Calcul des forces de pression en fonction de la divergence
+     * 
+     * @param dt Intervalle de temps
+     */
+    public void calculPression(double dt) {
+        double h = 1.0 / Math.min(X_SIZE, Y_SIZE);
+        double factor = dt / (AnimationMain.DENSITE * h * h);
+
+        // Calcul de la divergence
+        for (int x = 1; x < X_SIZE - 1; x++) {
+            for (int y = 1; y < Y_SIZE - 1; y++) {
+                if (!solide[x][y]) {
+                    grille[x][y].divergence = -0.5 * h
+                            * (grille[x + 1][y].vitesseHorizontale - grille[x - 1][y].vitesseHorizontale +
+                                    grille[x][y + 1].vitesseVerticale - grille[x][y - 1].vitesseVerticale);
+                } else {
+                    grille[x][y].divergence = 0;
+                }
+            }
+        }
+
+        // Initialisation de la pression
+        for (int x = 0; x < X_SIZE; x++) {
+            for (int y = 0; y < Y_SIZE; y++) {
+                grille[x][y].pression = 0;
+            }
+        }
+
+        // Calcul de la pression par relaxation de Gauss-Seidel
+        for (int k = 0; k < AnimationMain.ITER; k++) {
+            for (int x = 1; x < X_SIZE - 1; x++) {
+                for (int y = 1; y < Y_SIZE - 1; y++) {
+                    int solid = solide[x][y] ? 0 : 1;
+                    double sumPressure = 0;
+
+                    sumPressure = estSolide[x][y][0] * grille[x - 1][y].pression
+                            + estSolide[x][y][1] * grille[x + 1][y].pression
+                            + estSolide[x][y][2] * grille[x][y - 1].pression
+                            + estSolide[x][y][3] * grille[x][y + 1].pression;
+
+                    if (estSolide[x][y][4] > 0) {
+                        nouvellePression[x][y] = (sumPressure + solid * factor * grille[x][y].divergence)
+                                / estSolide[x][y][4];
+                    } else {
+                        nouvellePression[x][y] = 0;
+                    }
+                }
+            }
+            for (int x = 1; x < X_SIZE - 1; x++) {
+                for (int y = 1; y < Y_SIZE - 1; y++) {
+                    grille[x][y].pression = nouvellePression[x][y];
+                }
+            }
+        }
+
+        // Application de la pression à la vitesse
+        for (int x = 1; x < X_SIZE - 1; x++) {
+            for (int y = 1; y < Y_SIZE - 1; y++) {
+                if (!solide[x][y]) {
+                    // Calcul du gradient de pression
+                    double gradientPressionX = (grille[x + 1][y].pression - grille[x - 1][y].pression) / (2 * h);
+                    double gradientPressionY = (grille[x][y + 1].pression - grille[x][y - 1].pression) / (2 * h);
+
+                    // Application des forces
+                    grille[x][y].vitesseHorizontale -= dt * gradientPressionX / AnimationMain.DENSITE;
+                    grille[x][y].vitesseVerticale -= dt * gradientPressionY / AnimationMain.DENSITE;
+                } else {
+                    // Vitesse nulle à l'intérieur du solide
+                    grille[x][y].vitesseHorizontale = 0;
+                    grille[x][y].vitesseVerticale = 0;
+                }
+            }
+        }
+
+        // Application des conditions aux limites
+        imposerLimites();
+    }
+
+    /**
+     * Gestion des interactions entre le fluide et l'obstacle
+     */
+    private void interactionsSolide() {
+        for (int x = 1; x < X_SIZE - 1; x++) {
+            for (int y = 1; y < Y_SIZE - 1; y++) {
+                if (solide[x][y]) {
+                    // Inversion des vitesses au bord du solide
+                    if (!solide[x - 1][y])
+                        grille[x - 1][y].vitesseHorizontale = -grille[x - 1][y].vitesseHorizontale;
+                    if (!solide[x + 1][y])
+                        grille[x + 1][y].vitesseHorizontale = -grille[x + 1][y].vitesseHorizontale;
+                    if (!solide[x][y - 1])
+                        grille[x][y - 1].vitesseVerticale = -grille[x][y - 1].vitesseVerticale;
+                    if (!solide[x][y + 1])
+                        grille[x][y + 1].vitesseVerticale = -grille[x][y + 1].vitesseVerticale;
+                }
+            }
+        }
+    }
+
+    /**
+     * Mise à jour des valeurs extrémales de vitesse pour l'affichage
+     */
+    private void majMinMax() {
+        min = Double.MAX_VALUE;
+        max = Double.MIN_VALUE;
+
+        for (int x = 0; x < X_SIZE; x++) {
+            for (int y = 0; y < Y_SIZE; y++) {
+                // Calcul de la norme de la vitesse pour chaque case
+                grille[x][y].vitesse = Math.sqrt(grille[x][y].vitesseHorizontale * grille[x][y].vitesseHorizontale +
+                        grille[x][y].vitesseVerticale * grille[x][y].vitesseVerticale);
+
+                if (!solide[x][y]) {
+                    min = Math.min(min, grille[x][y].vitesse);
+                    max = Math.max(max, grille[x][y].vitesse);
+                }
+            }
+        }
+    }
+
+    /**
+     * Changement des propriétés du fluide
+     * 
+     * @param dt
+     */
+    public void update(double dt) {
+        // Etape 1: Apply external forces (if any)
+        appliquerForcesExterieures(dt);
+
+        // Etape 2: Advection
+        advection(dt);
+
+        // Etape 3: Diffusion
+        diffusion(dt);
+
+        // Etape 4: Calcul de la pression
+        calculPression(dt);
+
+        // Etape 5: Gestion des interactions avec le solide
+        interactionsSolide();
+
+        // Etape 6: Application des conditions aux limites
+        imposerLimites();
+
+        // Etape 7: Mise à jour des valeurs extrémales
+        majMinMax();
+    }
+
 }
