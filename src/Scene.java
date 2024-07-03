@@ -2,8 +2,8 @@ import java.util.stream.IntStream;
 
 public class Scene {
     // Taille de la grille (pour ne pas avoir à allonger le code)
-    private static final int X_SIZE = AnimationMain.X_SIZE;
-    private static final int Y_SIZE = AnimationMain.Y_SIZE;
+    private final int X_SIZE = AnimationMain.X_SIZE;
+    private final int Y_SIZE = AnimationMain.Y_SIZE;
 
     /** Tableau des cases contenant les propriétés spatiales */
     public Case[][] grille = new Case[X_SIZE][Y_SIZE];
@@ -25,7 +25,7 @@ public class Scene {
     private int[][][] estSolide = new int[X_SIZE][Y_SIZE][5];
 
     /** Tableau de booléens représentant un obstacle à l'écoulement */
-    public boolean[][] solide = new boolean[X_SIZE][Y_SIZE];
+    private boolean[][] solide = new boolean[X_SIZE][Y_SIZE];
 
     // Valeurs extrémales de vitesse
     public int min = 0;
@@ -47,10 +47,14 @@ public class Scene {
         initialiserVoisins();
     }
 
+    public boolean estSolide(int x, int y) {
+        return solide[x][y];
+    }
+
     /**
      * Initialise le tableau des voisins de chaque case
      */
-    void initialiserVoisins() {
+    private void initialiserVoisins() {
         for (int x = 1; x < X_SIZE - 1; x++) {
             for (int y = 1; y < Y_SIZE - 1; y++) {
                 estSolide[x][y][0] = solide[x - 1][y] ? 0 : 1; // Gauche
@@ -103,7 +107,7 @@ public class Scene {
      * @param x Abscisse
      * @return L'ordonnée du haut du profil
      */
-    static public double haut(double x) {
+    static private double haut(double x) {
         return 0.5 / 8.556 * (Math.sqrt(8.556 * x / 2) - 1.1 * Math.pow(8.556 * x / 5, 2));
     }
 
@@ -113,7 +117,7 @@ public class Scene {
      * @param x Abscisse
      * @return L'ordonnée du bas du profil
      */
-    static public double bas(double x) {
+    static private double bas(double x) {
         return 0.5 / 8.556 * (-Math.sqrt(8.556 * x) + Math.pow(8.556 * x / 3, 2) - 0.7 * Math.pow(8.556 * x / 4.1, 3));
     }
 
@@ -151,7 +155,7 @@ public class Scene {
     /**
      * Définir les conditions aux limites pour la simulation de fluide
      */
-    public void imposerLimites() {
+    private void imposerLimites() {
         for (int y = 0; y < Y_SIZE; y++) {
             // Limite gauche (flux incident)
             grille[0][y].vitesseHorizontale = AnimationMain.VITESSE;
@@ -192,7 +196,7 @@ public class Scene {
      * 
      * @param dt Intervalle de temps
      */
-    public void advection(double dt) {
+    private void advection(double dt) {
 
         for (int x = 1; x < X_SIZE - 1; x++) {
             for (int y = 1; y < Y_SIZE - 1; y++) {
@@ -258,7 +262,7 @@ public class Scene {
      * 
      * @param dt L'intervalle de temps
      */
-    public void diffusion(double dt) {
+    private void diffusion(double dt) {
         // Relaxation de Gauss-Seidel
         for (int k = 0; k < AnimationMain.ITER / 2; k++) {
             for (int x = 1; x < X_SIZE - 1; x++) {
@@ -299,7 +303,7 @@ public class Scene {
      * 
      * @param dt Intervalle de temps
      */
-    public void calculPression(double dt) {
+    private void calculPression(double dt) {
         double h = AnimationMain.VISC;
         double facteur = dt / (AnimationMain.DENSITE * h * h);
 

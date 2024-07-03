@@ -39,13 +39,13 @@ public class AnimationMain extends JPanel implements ActionListener {
      * 
      * @param g Scène contenant des objets et des couleurs
      */
-    void paint_scene(Graphics g) {
+    private void afficherScene(Graphics g) {
         for (int x = 0; x < X_SIZE; x++) {
             for (int y = 0; y < Y_SIZE; y++) {
 
                 // Détermination de la couleur correspondant à la densité au point (x,y)
                 Color coul;
-                if (scene.solide[x][y]) {
+                if (scene.estSolide(x, y)) {
                     coul = Color.BLACK;
                 } else {
                     coul = getSciColor(scene.grille[x][y].vitesse, scene.min, scene.max);
@@ -70,7 +70,7 @@ public class AnimationMain extends JPanel implements ActionListener {
      * @param valeurMax Valeur maximale du champ
      * @return La couleur idéale
      */
-    Color getSciColor(double value, int valeurMin, int valeurMax) {
+    private static Color getSciColor(double value, int valeurMin, int valeurMax) {
         // Normaliser la valeur
         double valeurNormee = 1
                 - (Math.min(Math.max(value, valeurMin), valeurMax) - valeurMin) / (valeurMax - valeurMin);
@@ -129,7 +129,7 @@ public class AnimationMain extends JPanel implements ActionListener {
 
         // Render de la scène
         scene.update((double) 1 / 100);
-        paint_scene(g);
+        afficherScene(g);
 
         // Calcul des fps
         if (compteur % 5 == 0) {
@@ -140,12 +140,21 @@ public class AnimationMain extends JPanel implements ActionListener {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        JFrame frame = new JFrame("Univers");
+        JFrame frame = new JFrame("Simulation");
+
+        // Ajout de la logique de durée d'affichage
         frame.add(new AnimationMain());
 
+        // Arrêter le programme à la fermeture de la fenêtre
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        // Taille de la fenêtre
         frame.setSize((X_SIZE) * ESPACEMENT, Y_SIZE * ESPACEMENT + Y_OFFSET);
+
+        // Emplacement de la fenêtre
         frame.setLocationRelativeTo(null);
+
+        // Visibilité de la fenêtre
         frame.setVisible(true);
     }
 
