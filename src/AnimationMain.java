@@ -9,8 +9,8 @@ import javax.swing.Timer;
 
 public class AnimationMain extends JPanel implements ActionListener {
     /// Paramètres de la simulation
-    static final int X_SIZE = 300; // Largeur de la fenêtre
-    static final int Y_SIZE = 80; // Hauteur de la fenêtre
+    static final int X_SIZE = 400; // Largeur de la fenêtre
+    static final int Y_SIZE = 100; // Hauteur de la fenêtre
     static final int Y_OFFSET = 37; // Offset en Y pour l'affichage
     static final int ESPACEMENT = 3; // Nombre de pixels par carré
     static final int ITER = 20; // Nombre d'itérations par calcul

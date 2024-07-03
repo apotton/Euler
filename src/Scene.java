@@ -1,3 +1,5 @@
+import java.util.stream.IntStream;
+
 public class Scene {
     // Taille de la grille (pour ne pas avoir à allonger le code)
     private static final int X_SIZE = AnimationMain.X_SIZE;
@@ -276,12 +278,6 @@ public class Scene {
                             dt * (grille[x - 1][y].vitesseVerticale + grille[x + 1][y].vitesseVerticale +
                                     grille[x][y - 1].vitesseVerticale + grille[x][y + 1].vitesseVerticale))
                             / (1 + 4 * dt);
-
-                    // Calcul de la pression
-                    nouvellePression[x][y] = (grille[x][y].pression +
-                            dt * (grille[x - 1][y].pression + grille[x + 1][y].pression +
-                                    grille[x][y - 1].pression + grille[x][y + 1].pression))
-                            / (1 + 4 * dt);
                 }
             }
 
@@ -290,7 +286,6 @@ public class Scene {
                 for (int y = 1; y < Y_SIZE - 1; y++) {
                     grille[x][y].vitesseHorizontale = nouvelleVitesseHorizontale[x][y];
                     grille[x][y].vitesseVerticale = nouvelleVitesseVerticale[x][y];
-                    grille[x][y].pression = nouvellePression[x][y];
                 }
             }
         }
@@ -325,14 +320,19 @@ public class Scene {
         for (int x = 0; x < X_SIZE; x++) {
             for (int y = 0; y < Y_SIZE; y++) {
                 grille[x][y].pression = 0;
+                nouvellePression[x][y] = 0;
             }
         }
 
         // Calcul de la pression par relaxation de Gauss-Seidel
         for (int k = 0; k < AnimationMain.ITER; k++) {
-            for (int x = 1; x < X_SIZE - 1; x++) {
-                for (int y = 1; y < Y_SIZE - 1; y++) {
-                    int solid = solide[x][y] ? 0 : 1;
+            // for (int x = 1; x < X_SIZE - 1; x++) {
+            // for (int y = 1; y < Y_SIZE - 1; y++) {
+            IntStream.range(0, X_SIZE * Y_SIZE).parallel().forEach(index -> {
+                int x = index / Y_SIZE;
+                int y = index % Y_SIZE;
+
+                if ((estSolide[x][y][4] != 0) && (x != 0) && (x != X_SIZE - 1) && (y != 0) && (y != Y_SIZE - 1)) {
                     double sumPressure = 0;
 
                     sumPressure = estSolide[x][y][0] * grille[x - 1][y].pression
@@ -340,14 +340,13 @@ public class Scene {
                             + estSolide[x][y][2] * grille[x][y - 1].pression
                             + estSolide[x][y][3] * grille[x][y + 1].pression;
 
-                    if (estSolide[x][y][4] > 0) {
-                        nouvellePression[x][y] = (sumPressure + solid * facteur * grille[x][y].divergence)
-                                / estSolide[x][y][4];
-                    } else {
-                        nouvellePression[x][y] = 0;
-                    }
+                    nouvellePression[x][y] = (sumPressure + facteur * grille[x][y].divergence)
+                            / estSolide[x][y][4];
                 }
-            }
+
+            });
+            // }
+            // }
             for (int x = 1; x < X_SIZE - 1; x++) {
                 for (int y = 1; y < Y_SIZE - 1; y++) {
                     grille[x][y].pression = nouvellePression[x][y];
